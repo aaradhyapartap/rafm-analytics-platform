@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAFM Analytics Platform</title>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1d27;
+            --card: #222633;
+            --border: #2d3348;
+            --text: #e2e8f0;
+            --muted: #8892a8;
+            --accent: #6366f1;
+            --accent2: #818cf8;
+            --green: #22c55e;
+            --yellow: #eab308;
+            --red: #ef4444;
+            --orange: #f97316;
+            --cyan: #06b6d4;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        header h1 {
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        header h1 span {
+            color: var(--accent);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+
+        .stat-card .label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .stat-card.accent .value {
+            color: var(--accent2);
+        }
+
+        .stat-card.green .value {
+            color: var(--green);
+        }
+
+        .stat-card.yellow .value {
+            color: var(--yellow);
+        }
+
+        .stat-card.red .value {
+            color: var(--red);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        @media(max-width:800px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+
+        .panel h2 {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 8px;
+            padding: 0.7rem 1.2rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 0.6rem;
+            transition: opacity 0.2s;
+        }
+
+        .btn:hover {
+            opacity: 0.85;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .btn-green {
+            background: var(--green);
+            color: #fff;
+        }
+
+        .btn-cyan {
+            background: var(--cyan);
+            color: #000;
+        }
+
+        .btn-orange {
+            background: var(--orange);
+            color: #000;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+
+        th {
+            text-align: left;
+            padding: 0.6rem 0.5rem;
+            color: var(--muted);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 0.6rem 0.5rem;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+
+        tr:hover td {
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .badge-high {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--red);
+        }
+
+        .badge-medium {
+            background: rgba(234, 179, 8, 0.15);
+            color: var(--yellow);
+        }
+
+        .badge-critical {
+            background: rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+
+        .badge-open {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--green);
+        }
+
+        .badge-investigating {
+            background: rgba(99, 102, 241, 0.15);
+            color: var(--accent2);
+        }
+
+        .badge-type {
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--cyan);
+        }
+
+        .btn-sm {
+            padding: 0.3rem 0.7rem;
+            font-size: 0.72rem;
+            width: auto;
+            margin: 0;
+            border-radius: 6px;
+        }
+
+        .report-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .report-modal.active {
+            display: flex;
+        }
+
+        .report-content {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-width: 700px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .report-content h3 {
+            margin-bottom: 1rem;
+        }
+
+        .report-content pre {
+            background: var(--bg);
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            white-space: pre-wrap;
+            line-height: 1.6;
+            overflow-x: auto;
+        }
+
+        .close-btn {
+            float: right;
+            background: none;
+            border: none;
+            color: var(--muted);
+            font-size: 1.4rem;
+            cursor: pointer;
+        }
+
+        .status-bar {
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            padding: 0.6rem 2rem;
+            font-size: 0.75rem;
+            color: var(--muted);
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .log {
+            margin-top: 0.5rem;
+            font-size: 0.78rem;
+            color: var(--muted);
+            min-height: 1.4rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>🛡️ <span>RAFM</span> Analytics Platform</h1>
+        <div class="header-actions">
+            <a href="/h2" target="_blank" class="btn btn-sm btn-cyan">Database Console</a>
+        </div>
+    </header>
+
+    <div class="container">
+
+        <div class="stats">
+            <div class="stat-card accent">
+                <div class="label">Active Customers</div>
+                <div class="value" id="s-customers">—</div>
+            </div>
+            <div class="stat-card green">
+                <div class="label">Billing Invoices</div>
+                <div class="value" id="s-billing">—</div>
+            </div>
+            <div class="stat-card yellow">
+                <div class="label">Payments Logged</div>
+                <div class="value" id="s-payments">—</div>
+            </div>
+            <div class="stat-card red">
+                <div class="label">Flagged Anomalies</div>
+                <div class="value" id="s-anomalies">—</div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div>
+                <div class="panel" style="margin-bottom:1rem;">
+                    <h2>⚡ Quick Actions</h2>
+                    <button class="btn btn-primary" onclick="seedData()">Seed 50 Synthetic Customers</button>
+                    <button class="btn btn-orange" onclick="ingestTelco()">Ingest IBM Telco CSV (7,043)</button>
+                    <button class="btn btn-green" onclick="runDetect()">Run Detection Engine</button>
+                    <button class="btn btn-cyan" onclick="refreshAll()">Refresh Dashboard</button>
+                    <div class="log" id="log"></div>
+                </div>
+                <div class="panel">
+                    <h2>📊 Anomaly Breakdown</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Count</th>
+                            </tr>
+                        </thead>
+                        <tbody id="breakdown"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="panel">
+                <h2>⚠️ Flagged Anomalies <span id="anomaly-count"
+                        style="margin-left:auto;font-size:0.75rem;color:var(--accent2)"></span></h2>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Customer</th>
+                                <th>Type</th>
+                                <th>Severity</th>
+                                <th>Description</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="anomaly-table"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="report-modal" id="modal">
+        <div class="report-content">
+            <button class="close-btn" onclick="closeModal()">&times;</button>
+            <h3>🔍 Investigation Report</h3>
+            <pre id="report-text"></pre>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <span>RAFM Analytics Platform — Revenue Assurance & Fraud Management</span>
+        <span>API: <a href="/api/anomalies?status=OPEN" style="color:var(--accent2)">/api/anomalies</a></span>
+    </div>
+
+    <script>
+        const API = '';
+
+        function log(msg) {
+            document.getElementById('log').textContent = msg;
+        }
+
+        async function api(method, path, body) {
+            try {
+                const opts = { method };
+                if (body) { opts.headers = { 'Content-Type': 'application/json' }; opts.body = JSON.stringify(body); }
+                const r = await fetch(API + path, opts);
+                return await r.json();
+            } catch (e) { log('Error: ' + e.message); return null; }
+        }
+
+        async function refreshAll() {
+            log('Refreshing...');
+            const [customers, billing, payments, anomalies] = await Promise.all([
+                api('GET', '/api/customers'),
+                api('GET', '/api/billing'),
+                api('GET', '/api/payments'),
+                api('GET', '/api/anomalies?status=OPEN')
+            ]);
+            document.getElementById('s-customers').textContent = customers ? customers.length : 0;
+            document.getElementById('s-billing').textContent = billing ? billing.length : 0;
+            document.getElementById('s-payments').textContent = payments ? payments.length : 0;
+            document.getElementById('s-anomalies').textContent = anomalies ? anomalies.length : 0;
+
+            if (anomalies && anomalies.length > 0) {
+                document.getElementById('anomaly-count').textContent = anomalies.length + ' OPEN';
+                renderAnomalies(anomalies);
+                renderBreakdown(anomalies);
+            } else {
+                document.getElementById('anomaly-table').innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:2rem">No anomalies detected yet. Seed data and run detection.</td></tr>';
+                document.getElementById('breakdown').innerHTML = '';
+                document.getElementById('anomaly-count').textContent = '';
+            }
+            log('Dashboard refreshed.');
+        }
+
+        function renderAnomalies(data) {
+            const tbody = document.getElementById('anomaly-table');
+            tbody.innerHTML = data.slice(0, 50).map(a => `
+    <tr>
+      <td>#${a.id}</td>
+      <td>Customer #${a.customerId}</td>
+      <td><span class="badge badge-type">${a.type}</span></td>
+      <td><span class="badge badge-${a.severity.toLowerCase()}">${a.severity}</span></td>
+      <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${a.description}">${a.description}</td>
+      <td><span class="badge badge-${a.status.toLowerCase()}">${a.status}</span></td>
+      <td><button class="btn btn-sm btn-primary" onclick="investigate(${a.id})">Investigate</button></td>
+    </tr>
+  `).join('');
+        }
+
+        function renderBreakdown(data) {
+            const counts = {};
+            data.forEach(a => { counts[a.type] = (counts[a.type] || 0) + 1; });
+            const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+            document.getElementById('breakdown').innerHTML = sorted.map(([type, count]) =>
+                `<tr><td><span class="badge badge-type">${type}</span></td><td style="font-weight:700">${count}</td></tr>`
+            ).join('');
+        }
+
+        async function seedData() {
+            log('Seeding 50 customers...');
+            const r = await api('POST', '/api/admin/seed?customers=50');
+            if (r) log(`Seeded: ${r.customers} customers, ${r.billing} billing, ${r.payments} payments`);
+            refreshAll();
+        }
+
+        async function ingestTelco() {
+            log('Ingesting IBM Telco CSV (7,043 rows)... this may take 30-60 seconds.');
+            const r = await api('POST', '/api/admin/ingest-telco?maxRows=0');
+            if (r) log(`Ingested: ${r.customers} customers, ${r.billing} billing, ${r.payments} payments`);
+            refreshAll();
+        }
+
+        async function runDetect() {
+            log('Running detection engine...');
+            const r = await api('POST', '/api/admin/detect');
+            if (r) log(`Detection complete: ${r.length} anomalies found.`);
+            refreshAll();
+        }
+
+        async function investigate(id) {
+            log('Investigating anomaly #' + id + '...');
+            const r = await api('POST', '/api/investigations/' + id);
+            if (r) {
+                const text = r.generatedReport || JSON.stringify(r, null, 2);
+                document.getElementById('report-text').textContent =
+                    `Classification: ${r.classification}\n` +
+                    `Risk Score: ${r.confidenceScore}\n` +
+                    `Recommended Action: ${r.recommendedAction}\n\n` +
+                    `--- Full Report ---\n\n` + text;
+                document.getElementById('modal').classList.add('active');
+                log('Investigation complete for anomaly #' + id);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+        }
+
+        document.getElementById('modal').addEventListener('click', function (e) {
+            if (e.target === this) closeModal();
+        });
+
+        refreshAll();
+    </script>
+</body>
+
+</html>
