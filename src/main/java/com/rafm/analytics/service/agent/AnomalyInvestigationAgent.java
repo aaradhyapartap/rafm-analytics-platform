@@ -2,100 +2,141 @@ package com.rafm.analytics.service.agent;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rafm.analytics.model.Anomaly;
-import com.rafm.analytics.model.InvestigationReport;
-import com.rafm.analytics.repository.AnomalyRepository;
-import com.rafm.analytics.repository.InvestigationReportRepository;
+import com.rafm.analytics.model.*;
+import com.rafm.analytics.repository.*;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.NoSuchElementException;
+import java.util.*;
 
+/**
+ * Deterministic, auditable investigation workflow. Every step is logged into
+ * the report's evidence trail so the output is reproducible and explainable —
+ * the same shape we'd swap in a tool-calling LLM under, later.
+ */
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class AnomalyInvestigationAgent {
 
-    private final AnomalyRepository anomalyRepository;
-    private final InvestigationReportRepository investigationReportRepository;
-    private final AgentTools agentTools;
-    private final ObjectMapper objectMapper;
-
-    public AnomalyInvestigationAgent(
-            AnomalyRepository anomalyRepository,
-            InvestigationReportRepository investigationReportRepository,
-            AgentTools agentTools,
-            ObjectMapper objectMapper
-    ) {
-        this.anomalyRepository = anomalyRepository;
-        this.investigationReportRepository = investigationReportRepository;
-        this.agentTools = agentTools;
-        this.objectMapper = objectMapper;
-    }
+    private final AnomalyRepository anomalyRepo;
+    private final InvestigationReportRepository reportRepo;
+    private final AgentTools tools;
+    private final ObjectMapper mapper = new ObjectMapper();
 
     public Map<String, Object> investigate(Long anomalyId) {
-        Anomaly anomaly = anomalyRepository.findById(anomalyId)
-                .orElseThrow(() -> new NoSuchElementException("Anomaly not found: " + anomalyId));
+        Anomaly anomaly = anomalyRepo.findById(anomalyId)
+                .orElseThrow(() -> new NoSuchElementException(
+                        "Anomaly " + anomalyId + " not found"));
 
-        Map<String, Object> evidence = agentTools.gatherEvidence(anomaly);
-        String classification = agentTools.classify(anomaly);
-        double riskScore = agentTools.scoreRisk(anomaly);
-        String recommendedAction = agentTools.recommendAction(anomaly, riskScore);
+        List<String> trace = new ArrayList<>();
+        trace.add("step=receive id=" + anomalyId + " type=" + anomaly.getType());
 
-        String reportText = buildReport(anomaly, classification, riskScore, recommendedAction);
+        Customer customer = tools.customerLookup(anomaly.getCustomerId()).orElse(null);
+        trace.add("step=customer_lookup found=" + (customer != null));
+
+        List<BillingRecord> bills = tools.billingLookup(anomaly.getCustomerId());
+        List<PaymentRecord> pays = tools.paymentLookup(anomaly.getCustomerId());
+        List<UsageRecord> usage = tools.usageLookup(anomaly.getCustomerId());
+        trace.add("step=context_gather bills=" + bills.size()
+                + " pays=" + pays.size() + " usage=" + usage.size());
+
+        String classification = tools.classify(anomaly);
+        trace.add("step=classify result=" + classification);
+
+        double risk = tools.riskScore(anomaly, customer);
+        trace.add("step=risk_score value=" + String.format("%.2f", risk));
+
+        String action = tools.recommend(anomaly, risk);
+        trace.add("step=recommend action=" + action);
+
+        String narrative = buildReport(anomaly, customer, bills.size(), pays.size(),
+                usage.size(), classification, risk, action);
+        trace.add("step=report_generated len=" + narrative.length());
+
+        Map<String, Object> evidence = new LinkedHashMap<>();
+        evidence.put("anomalyId", anomaly.getId());
+        evidence.put("anomalyType", anomaly.getType());
+        evidence.put("severity", anomaly.getSeverity());
+        evidence.put("customerId", anomaly.getCustomerId());
+        evidence.put("customerRiskTier",
+                customer == null ? null : customer.getRiskTier());
+        evidence.put("billingRecordCount", bills.size());
+        evidence.put("paymentRecordCount", pays.size());
+        evidence.put("usageRecordCount", usage.size());
+        evidence.put("trace", trace);
 
         String evidenceJson;
         try {
-            evidenceJson = objectMapper.writeValueAsString(evidence);
+            evidenceJson = mapper.writeValueAsString(evidence);
         } catch (JsonProcessingException e) {
-            evidenceJson = "{\"error\":\"Could not serialize evidence\"}";
+            log.warn("Could not serialize evidence: {}", e.getMessage());
+            evidenceJson = "{\"error\":\"serialization\"}";
         }
 
-        InvestigationReport report = new InvestigationReport();
-        report.setAnomalyId(anomaly.getId());
-        report.setClassification(classification);
-        report.setEvidenceJson(evidenceJson);
-        report.setRecommendedAction(recommendedAction);
-        report.setConfidenceScore(riskScore);
-        report.setReportText(reportText);
-        report.setGeneratedAt(Instant.now());
-
-        investigationReportRepository.save(report);
+        InvestigationReport report = InvestigationReport.builder()
+                .anomalyId(anomaly.getId())
+                .classification(classification)
+                .evidenceJson(evidenceJson)
+                .recommendedAction(action)
+                .confidenceScore(risk)
+                .reportText(narrative)
+                .generatedAt(Instant.now())
+                .build();
+        reportRepo.save(report);
 
         anomaly.setStatus("INVESTIGATING");
-        anomalyRepository.save(anomaly);
+        anomalyRepo.save(anomaly);
 
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("anomalyId", anomaly.getId());
-        response.put("anomalyType", anomaly.getType());
-        response.put("severity", anomaly.getSeverity());
-        response.put("classification", classification);
-        response.put("explanation", anomaly.getDescription());
-        response.put("evidence", evidence);
-        response.put("recommendedAction", recommendedAction);
-        response.put("confidenceScore", riskScore);
-        response.put("generatedReport", reportText);
-
-        return response;
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("anomalyId", anomaly.getId());
+        result.put("anomalyType", anomaly.getType());
+        result.put("severity", anomaly.getSeverity());
+        result.put("classification", classification);
+        result.put("explanation", anomaly.getDescription());
+        result.put("evidence", evidence);
+        result.put("recommendedAction", action);
+        result.put("confidenceScore", risk);
+        result.put("generatedReport", narrative);
+        return result;
     }
 
-    private String buildReport(
-            Anomaly anomaly,
-            String classification,
-            double riskScore,
-            String recommendedAction
-    ) {
-        return "RAFM Investigation Report\n"
-                + "=========================\n"
-                + "Anomaly ID: " + anomaly.getId() + "\n"
-                + "Type: " + anomaly.getType() + "\n"
-                + "Severity: " + anomaly.getSeverity() + "\n"
-                + "Description: " + anomaly.getDescription() + "\n\n"
-                + "Classification:\n"
-                + classification + "\n\n"
-                + "Risk Score:\n"
-                + riskScore + "\n\n"
-                + "Recommended Action:\n"
-                + recommendedAction + "\n";
+    private String buildReport(Anomaly a, Customer c, int bills, int pays, int usage,
+                               String cls, double risk, String action) {
+        return """
+                RAFM Investigation Report
+                =========================
+                Anomaly ID    : %d
+                Type          : %s   Severity: %s
+                Customer      : %s (id=%s, tier=%s)
+                Description   : %s
+
+                Context gathered
+                ----------------
+                Billing records reviewed: %d
+                Payment records reviewed: %d
+                Usage records reviewed  : %d
+
+                Classification
+                --------------
+                %s
+
+                Risk assessment
+                ---------------
+                Confidence score: %.2f / 1.00
+
+                Recommended action
+                ------------------
+                %s
+                """.formatted(
+                a.getId(), a.getType(), a.getSeverity(),
+                c == null ? "UNKNOWN" : c.getName(),
+                c == null ? "?" : c.getId().toString(),
+                c == null ? "?" : c.getRiskTier(),
+                a.getDescription(),
+                bills, pays, usage,
+                cls, risk, action);
     }
 }

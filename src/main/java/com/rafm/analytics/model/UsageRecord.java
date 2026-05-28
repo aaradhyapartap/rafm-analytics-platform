@@ -1,66 +1,38 @@
 package com.rafm.analytics.model;
 
 import jakarta.persistence.*;
+import lombok.*;
+
 import java.time.Instant;
 
 @Entity
-@Table(name = "usage_records")
+@Table(name = "usage_records",
+        indexes = {
+                @Index(name = "idx_usage_customer_time",
+                        columnList = "customer_id,occurred_at")
+        })
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class UsageRecord {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "customer_id")
     private Long customerId;
+
+    /** VOICE, DATA, SMS, ROAMING. */
     private String usageType;
+
+    /** minutes / MB / count, depending on usageType. */
     private Double units;
+
     private String location;
+
+    @Column(name = "occurred_at")
     private Instant occurredAt;
-
-    public UsageRecord() {
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Long getCustomerId() {
-        return customerId;
-    }
-
-    public void setCustomerId(Long customerId) {
-        this.customerId = customerId;
-    }
-
-    public String getUsageType() {
-        return usageType;
-    }
-
-    public void setUsageType(String usageType) {
-        this.usageType = usageType;
-    }
-
-    public Double getUnits() {
-        return units;
-    }
-
-    public void setUnits(Double units) {
-        this.units = units;
-    }
-
-    public String getLocation() {
-        return location;
-    }
-
-    public void setLocation(String location) {
-        this.location = location;
-    }
-
-    public Instant getOccurredAt() {
-        return occurredAt;
-    }
-
-    public void setOccurredAt(Instant occurredAt) {
-        this.occurredAt = occurredAt;
-    }
 }
