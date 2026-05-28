@@ -1,82 +1,82 @@
 package com.rafm.analytics.service.agent;
 
-import com.rafm.analytics.model.Anomaly;
-import com.rafm.analytics.model.Customer;
-import com.rafm.analytics.repository.BillingRepository;
-import com.rafm.analytics.repository.CustomerRepository;
-import com.rafm.analytics.repository.PaymentRepository;
-import com.rafm.analytics.repository.UsageRepository;
+import com.rafm.analytics.model.*;
+import com.rafm.analytics.repository.*;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
+import java.util.Optional;
 
 @Component
+@RequiredArgsConstructor
 public class AgentTools {
 
-    private final CustomerRepository customerRepository;
-    private final BillingRepository billingRepository;
-    private final PaymentRepository paymentRepository;
-    private final UsageRepository usageRepository;
+    private final CustomerRepository customerRepo;
+    private final BillingRepository billingRepo;
+    private final UsageRepository usageRepo;
+    private final PaymentRepository paymentRepo;
 
-    public AgentTools(
-            CustomerRepository customerRepository,
-            BillingRepository billingRepository,
-            PaymentRepository paymentRepository,
-            UsageRepository usageRepository
-    ) {
-        this.customerRepository = customerRepository;
-        this.billingRepository = billingRepository;
-        this.paymentRepository = paymentRepository;
-        this.usageRepository = usageRepository;
+    public Optional<Customer> customerLookup(Long customerId) {
+        return customerRepo.findById(customerId);
     }
 
-    public Map<String, Object> gatherEvidence(Anomaly anomaly) {
-        Map<String, Object> evidence = new HashMap<>();
-
-        Customer customer = customerRepository.findById(anomaly.getCustomerId()).orElse(null);
-
-        evidence.put("customer", customer);
-        evidence.put("billingRecords", billingRepository.findByCustomerId(anomaly.getCustomerId()));
-        evidence.put("paymentRecords", paymentRepository.findByCustomerId(anomaly.getCustomerId()));
-        evidence.put("usageRecords", usageRepository.findByCustomerId(anomaly.getCustomerId()));
-
-        return evidence;
+    public List<BillingRecord> billingLookup(Long customerId) {
+        return billingRepo.findByCustomerId(customerId);
     }
 
-    public String classify(Anomaly anomaly) {
-        if ("DUPLICATE_PAYMENT".equalsIgnoreCase(anomaly.getType())) {
-            return "Revenue assurance issue: duplicate payment activity detected.";
-        }
-
-        if ("BILLING_PAYMENT_MISMATCH".equalsIgnoreCase(anomaly.getType())) {
-            return "Billing reconciliation issue: payment total does not match invoice amount.";
-        }
-
-        return "General anomaly requiring analyst review.";
+    public List<PaymentRecord> paymentLookup(Long customerId) {
+        return paymentRepo.findByCustomerId(customerId);
     }
 
-    public double scoreRisk(Anomaly anomaly) {
-        if ("HIGH".equalsIgnoreCase(anomaly.getSeverity())) {
-            return 0.85;
-        }
-
-        if ("MEDIUM".equalsIgnoreCase(anomaly.getSeverity())) {
-            return 0.60;
-        }
-
-        return 0.35;
+    public List<UsageRecord> usageLookup(Long customerId) {
+        return usageRepo.findByCustomerId(customerId);
     }
 
-    public String recommendAction(Anomaly anomaly, double riskScore) {
-        if (riskScore >= 0.80) {
-            return "Escalate to revenue assurance analyst and review duplicate transaction trail.";
-        }
+    public double riskScore(Anomaly a, Customer customer) {
+        double base = switch (a.getType()) {
+            case "DUPLICATE_CHARGE" -> 0.7;
+            case "BILLING_DISCREPANCY" -> 0.5;
+            case "UNUSUAL_USAGE_SPIKE" -> 0.4;
+            case "PAYMENT_FAILURE_PATTERN" -> 0.75;
+            case "REVENUE_LEAKAGE" -> 0.9;
+            case "HIGH_RISK_CHURN_SIGNAL" -> 0.85;
+            default -> 0.3;
+        };
+        double tierBoost = customer == null ? 0
+                : switch (customer.getRiskTier() == null ? "LOW" : customer.getRiskTier()) {
+                    case "HIGH" -> 0.15;
+                    case "MEDIUM" -> 0.05;
+                    default -> 0.0;
+                };
+        return Math.min(1.0, base + tierBoost);
+    }
 
-        if (riskScore >= 0.50) {
-            return "Open a reconciliation case and verify billing/payment records.";
-        }
+    public String classify(Anomaly a) {
+        return switch (a.getType()) {
+            case "DUPLICATE_CHARGE" ->
+                    "Billing integrity issue - duplicate transaction";
+            case "BILLING_DISCREPANCY" ->
+                    "Reconciliation issue - payment differs from billed amount";
+            case "UNUSUAL_USAGE_SPIKE" ->
+                    "Behavioral anomaly - potential fraud or rate-plan misuse";
+            case "PAYMENT_FAILURE_PATTERN" ->
+                    "Credit risk - recurring payment failures";
+            case "REVENUE_LEAKAGE" ->
+                    "Revenue assurance gap - unbilled usage";
+            case "HIGH_RISK_CHURN_SIGNAL" ->
+                    "Credit & retention risk - high-tier customer with payment failures";
+            default -> "Unclassified anomaly";
+        };
+    }
 
-        return "Monitor trend and include in weekly revenue assurance review.";
+    public String recommend(Anomaly a, double risk) {
+        if (risk >= 0.8) {
+            return "Escalate to fraud ops; freeze related transactions pending review.";
+        }
+        if (risk >= 0.5) {
+            return "Open analyst case; verify with customer within 48h.";
+        }
+        return "Log for trend monitoring; review in weekly RA report.";
     }
 }
