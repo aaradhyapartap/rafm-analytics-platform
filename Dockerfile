@@ -8,6 +8,7 @@ RUN mvn -B package -DskipTests
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 COPY --from=build /build/target/rafm-analytics-*.jar app.jar
+COPY data ./data
 EXPOSE 8080
-ENV SPRING_PROFILES_ACTIVE=docker
+ENV SPRING_PROFILES_ACTIVE=local
 ENTRYPOINT ["java","-jar","/app/app.jar"]
